@@ -4,36 +4,18 @@ This module implements the IoC agent with alfa-beta algorithm.
 
 """
 import random
-import sys
 import chess
 from chess import polyglot
+from backend.adapter import AgentAdapter, Player
 
-class ChessAlfaAgent(object):
+
+class ChessRandomAgent(AgentAdapter):
     def __init__(self):
         """Agent constructor"""
-        self.board: chess.Board = None
-        self.my_player: chess.Color = None
+        self.board: chess.Board = chess.Board()
+        self.my_player: chess.Color = chess.WHITE
         self.reset()
-        self.book_reader = polyglot.open_reader('./Cerebellum3Merge.bin')
-
-    def reset(self):
-        """Reset the agent"""
-        self.board = chess.Board()
-        self.my_player = chess.BLACK
-        self.publish('RDY')
-
-    @staticmethod
-    def publish(what):
-        """Publish info to enemy"""
-        sys.stdout.write(what)
-        sys.stdout.write('\n')
-        sys.stdout.flush()
-
-    @staticmethod
-    def sniff():
-        """Sniff info from enemy"""
-        line = sys.stdin.readline().split()
-        return line[0], line[1:]
+        self.book_reader = polyglot.open_reader('../data/Cerebellum3Merge.bin')
 
     def evaluate(self) -> int:
         """Evaluate the board using heuristic function"""
@@ -216,29 +198,23 @@ class ChessAlfaAgent(object):
 
         return best_move
 
-    def loop(self):
-        """Fight for life"""
+    def play(self) -> bool:
+        """Play random chess move"""
+        move = self.best_move(2)
+        self.board.push(move)
 
-        while True:
-            cmd, args = self.sniff()
-            if cmd == 'HEDID':
-                move = chess.Move.from_uci(args[2])
-                self.board.push(move)
+        return self.board.is_game_over()
 
-            elif cmd == 'ONEMORE':
-                self.reset()
-                continue
+    def register(self, uci: str) -> None:
+        """Register user's move"""
+        move = chess.Move.from_uci(uci)
+        self.board.push(move)
 
-            elif cmd == 'BYE':
-                break
+    def reset(self, player: Player=Player.FIRST) -> None:
+        """Reset the agent"""
+        self.board = chess.Board()
 
-            else:
-                assert cmd == 'UGO'
-                self.my_player = chess.WHITE
-
-            # Pick best move
-            move = self.best_move(1)
-
-            self.board.push(move)
-
-            self.publish('IDO ' + str(move))
+        if player == Player.FIRST:
+            self.my_player = chess.WHITE
+        else:
+            self.my_player = chess.BLACK
